@@ -1,23 +1,404 @@
-<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FM Squad Architect V4.2.4R</title><style>body{font-family:Segoe UI;background:#0f172a;color:#e5e7eb;margin:0}.h{background:#111827;padding:12px}.w{max-width:1700px;margin:auto;padding:12px}.card{background:#111827;border:1px solid #334155;border-radius:12px;padding:12px;margin-bottom:12px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #334155;padding:6px}select,input,button{padding:5px}.grid{display:grid;grid-template-columns:2fr 1fr;gap:12px}.pitch{position:relative;height:620px;background:#166534;border:3px solid #fff;border-radius:12px}.spot{position:absolute;transform:translate(-50%,-50%);background:#facc15;color:#111;padding:4px 6px;border-radius:8px;font-size:11px;text-align:center}</style></head><body><div class=h><h2>FM Squad Architect V4.2.4R</h2></div><div class=w><div class=card><table><thead><tr><th>#</th><th>Position</th><th>Role</th><th>Duty</th></tr></thead><tbody id=rows></tbody></table></div><div class=grid><div class=card><div id=pitch class=pitch></div></div><div><div class=card><h3>Role Profiles In Use</h3><table><tbody id=profiles></tbody></table></div><div class=card><h3 id=editorTitle>Role Weight Editor</h3><div style="max-height:500px;overflow:auto"><table id=weights></table></div><button onclick="resetProfile()">Reset To FM Default</button></div><div class=card><h3>Summary</h3><div id=summary></div></div></div></div><div class=card><button onclick='saveData()'>Save</button> <button onclick='loadData()'>Load</button> <button onclick='exportData()'>Export</button><pre id=out></pre></div></div><script>
-const ATTRS=['Acceleration','Agility','Balance','JumpingReach','NaturalFitness','Pace','Stamina','Strength','Aggression','Anticipation','Bravery','Composure','Concentration','Decisions','Determination','Flair','Leadership','OffTheBall','Positioning','Teamwork','Vision','WorkRate','Crossing','Dribbling','Finishing','FirstTouch','Heading','LongShots','Marking','Passing','Tackling','Technique'];
-const POS=['','GK','DR','DRC','DC','DLC','DL','MRD','MD','MLD','MR','MRC','MC','MLC','ML','AMR','AMC','AML','STR','STC','STL'];
-const F={GK:'GK',DR:'FB',DL:'FB',DRC:'DC',DC:'DC',DLC:'DC',MRD:'DM',MD:'DM',MLD:'DM',MR:'WM',ML:'WM',MRC:'MC',MC:'MC',MLC:'MC',AMR:'AM',AMC:'AMC',AML:'AM',STR:'ST',STC:'ST',STL:'ST'};
-const LIB={GK:['Goalkeeper','Sweeper Keeper'],FB:['Full Back','Wing Back','No Nonsense Full Back','Complete Wing Back','Inverted Wing Back','Inverted Full Back'],DC:['Central Defender','Ball Playing Defender','No Nonsense Centre Back','Wide Centre Back','Libero'],DM:['Defensive Midfielder','Anchor','Half Back','Deep Lying Playmaker','Regista','Segundo Volante','Roaming Playmaker','Ball Winning Midfielder'],WM:['Wide Midfielder','Winger','Inverted Winger','Wide Playmaker','Defensive Winger'],MC:['Central Midfielder','Deep Lying Playmaker','Advanced Playmaker','Box To Box Midfielder','Ball Winning Midfielder','Mezzala','Carrilero','Roaming Playmaker'],AM:['Winger','Inside Forward','Inverted Winger','Raumdeuter','Advanced Playmaker','Trequartista','Wide Target Forward'],AMC:['Attacking Midfielder','Advanced Playmaker','Shadow Striker','Enganche','Trequartista'],ST:['Advanced Forward','Pressing Forward','Deep Lying Forward','Poacher','Target Forward','Complete Forward','False Nine','Trequartista']};
-const CO={GK:[50,90],DR:[80,75],DRC:[65,75],DC:[50,78],DLC:[35,75],DL:[20,75],MRD:[65,60],MD:[50,60],MLD:[35,60],MR:[80,45],MRC:[65,45],MC:[50,45],MLC:[35,45],ML:[20,45],AMR:[80,28],AMC:[50,28],AML:[20,28],STR:[65,12],STC:[50,10],STL:[35,12]};
-function blank(){let o={};ATTRS.forEach(a=>o[a]=0);return o}
-let defaults={};['Advanced Forward|Attack','Anchor|Defend','Mezzala|Attack','Ball Playing Defender|Defend'].forEach(k=>defaults[k]=blank());defaults['Advanced Forward|Attack'].Finishing=5;defaults['Advanced Forward|Attack'].Pace=5;defaults['Advanced Forward|Attack'].Acceleration=5;defaults['Advanced Forward|Attack'].OffTheBall=5;defaults['Anchor|Defend'].Positioning=5;defaults['Anchor|Defend'].Teamwork=5;defaults['Anchor|Defend'].Tackling=5;defaults['Mezzala|Attack'].Passing=4;defaults['Mezzala|Attack'].Vision=4;defaults['Mezzala|Attack'].Technique=5;defaults['Ball Playing Defender|Defend'].Passing=5;defaults['Ball Playing Defender|Defend'].Marking=4;
-let slots=Array.from({length:11},()=>({position:'',role:'',duty:''})),custom={},active='';
-function duties(p){return ['DRC','DC','DLC'].includes(p)?['Defend','Support','Attack','Cover']:['Defend','Support','Attack']}
-function render(){rows.innerHTML='';slots.forEach((s,i)=>{let roles=s.position?(LIB[F[s.position]]||[]):[];rows.innerHTML+=`<tr><td>${i+1}</td><td><select onchange="setP(${i},this.value)">${POS.map(x=>`<option ${x==s.position?'selected':''}>${x}</option>`).join('')}</select></td><td><select onchange="setR(${i},this.value)"><option></option>${roles.map(x=>`<option ${x==s.role?'selected':''}>${x}</option>`).join('')}</select></td><td><select onchange="slots[${i}].duty=this.value;refresh()"><option></option>${duties(s.position).map(x=>`<option ${x==s.duty?'selected':''}>${x}</option>`).join('')}</select></td></tr>`});draw();buildProfiles();summary.innerHTML=`Attack: ${slots.filter(x=>x.duty=='Attack').length}<br>Support: ${slots.filter(x=>x.duty=='Support').length}<br>Defend: ${slots.filter(x=>x.duty=='Defend').length}`}
-function setP(i,v){slots[i]={position:v,role:'',duty:''};refresh()} function setR(i,v){slots[i].role=v;refresh()} function refresh(){render()}
-function draw(){pitch.innerHTML='';slots.forEach(s=>{if(!s.position)return;let d=document.createElement('div');d.className='spot';d.style.left=CO[s.position][0]+'%';d.style.top=CO[s.position][1]+'%';d.innerHTML='<b>'+s.position+'</b><br>'+s.role+'<br>'+s.duty;pitch.appendChild(d)})}
-function buildProfiles(){let u={};slots.forEach(s=>{if(s.role&&s.duty)u[s.role+'|'+s.duty]=1});profiles.innerHTML='';Object.keys(u).forEach(k=>profiles.innerHTML+=`<tr><td>${k}</td><td>${custom[k]?'Custom':'Default'}</td><td><button onclick="editProfile('${k}')">Edit</button></td></tr>`)}
-function getProf(k){let p=JSON.parse(JSON.stringify(defaults[k]||blank()));if(custom[k])Object.assign(p,custom[k]);return p}
-function editProfile(k){active=k;editorTitle.textContent=k;let p=getProf(k);weights.innerHTML='';ATTRS.forEach(a=>weights.innerHTML+=`<tr><td>${a}</td><td><input type='number' value='${p[a]}' onchange="setWeight('${a}',this.value)"></td></tr>`)}
-function setWeight(a,v){custom[active]=custom[active]||{};custom[active][a]=Number(v);buildProfiles()}
-function resetProfile(){if(active){delete custom[active];editProfile(active);buildProfiles()}}
-function saveData(){localStorage.fm424r=JSON.stringify({slots,custom})}
-function loadData(){let d=localStorage.fm424r;if(d){let o=JSON.parse(d);slots=o.slots;custom=o.custom||{};render()}}
-function exportData(){out.textContent=JSON.stringify({slots,defaults,custom},null,2)}
-render();
-</script></body></html>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FM Squad Architect V4.2.4R</title>
+    <style>
+        body {
+            font-family: Segoe UI;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            margin: 0;
+            padding: 20px;
+        }
+        table {
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        td, th {
+            border: 1px solid #444;
+            padding: 10px;
+            text-align: left;
+        }
+        select, input {
+            background-color: #2d2d2d;
+            color: #d4d4d4;
+            border: 1px solid #444;
+            padding: 5px;
+        }
+        button {
+            background-color: #007acc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #005a9e;
+        }
+        #pitch {
+            position: relative;
+            width: 100%;
+            height: 600px;
+            background: linear-gradient(to bottom, #1a5a1a 0%, #1a5a1a 50%, #1a5a1a 100%);
+            border: 2px solid #fff;
+            margin: 20px 0;
+        }
+        .spot {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background-color: #007acc;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>FM Squad Architect V4.2.4R</h1>
+    
+    <!-- Squad Formation Display -->
+    <div id="pitch"></div>
+    
+    <!-- Squad Lineup Table -->
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Slot</th>
+                <th>Position</th>
+                <th>Role</th>
+                <th>Duty</th>
+            </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+    </table>
+    
+    <!-- Player Profiles Table -->
+    <h2>Player Profiles</h2>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Profile (Role|Duty)</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="profiles"></tbody>
+    </table>
+    
+    <!-- Profile Editor Section -->
+    <div id="editorSection" style="display: none; border: 1px solid #444; padding: 20px; margin-top: 20px;">
+        <h2 id="editorTitle">Edit Profile</h2>
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>Attribute</th>
+                    <th>Weight</th>
+                </tr>
+            </thead>
+            <tbody id="weights"></tbody>
+        </table>
+        <button onclick="resetProfile()">Reset to Default</button>
+        <button onclick="closeEditor()">Close</button>
+    </div>
+    
+    <!-- Data Management Section -->
+    <div style="margin-top: 30px; border-top: 2px solid #444; padding-top: 20px;">
+        <h2>Data Management</h2>
+        <button onclick="saveData()">Save Data</button>
+        <button onclick="loadData()">Load Data</button>
+        <button onclick="exportData()">Export Data</button>
+        <pre id="out" style="background-color: #2d2d2d; padding: 10px; border-radius: 5px;"></pre>
+    </div>
+
+    <script>
+        // ============================================================================
+        // SECTION 1: CONSTANTS & CONFIGURATION
+        // ============================================================================
+        // Player attributes used for role profiling
+        const ATTRS = [
+            'Acceleration', 'Agility', 'Balance', 'JumpingReach', 'NaturalFitness',
+            'Pace', 'Stamina', 'Strength', 'Aggression', 'Anticipation', 'Bravery',
+            'Composure', 'Concentration', 'Decisions', 'Determination', 'Flair',
+            'Heading', 'LeftFoot', 'Marking', 'OffTheBall', 'Passing', 'Positioning',
+            'Teamwork', 'Technique', 'Finishing', 'Dribbling', 'FirstTouch', 'LongShots'
+        ];
+
+        // Available positions on the pitch
+        const POS = [
+            '', 'GK', 'DR', 'DRC', 'DC', 'DLC', 'DL', 'MRD', 'MD', 'MLD',
+            'MR', 'MRC', 'MC', 'MLC', 'ML', 'AMR', 'AMC', 'AML', 'STR', 'STC', 'STL'
+        ];
+
+        // Position to role mapping (e.g., DR and DL both map to FB - Full Back)
+        const F = {
+            GK: 'GK', DR: 'FB', DL: 'FB', DRC: 'DC', DC: 'DC', DLC: 'DC',
+            MRD: 'DM', MD: 'DM', MLD: 'DM', MR: 'WM', ML: 'WM',
+            MRC: 'MC', MC: 'MC', MLC: 'MC', AMR: 'AM', AMC: 'AMC', AML: 'AM',
+            STR: 'ST', STC: 'ST', STL: 'ST'
+        };
+
+        // Role library - available tactical roles for each position type
+        const LIB = {
+            GK: ['Goalkeeper', 'Sweeper Keeper'],
+            FB: ['Full Back', 'Wing Back', 'No Nonsense Full Back', 'Complete Wing Back', 'Inverted Wing Back', 'Inverted Full Back'],
+            DC: ['Central Defender', 'Ball Playing Defender', 'Stopper', 'Libero'],
+            DM: ['Anchor', 'Mezzala', 'Box-to-Box', 'Deep-lying Playmaker'],
+            WM: ['Winger', 'Inside Forward', 'Wide Midfielder'],
+            MC: ['Box-to-Box', 'Playmaker', 'Mezzala'],
+            AM: ['Attacking Midfielder', 'Trequartista', 'Advanced Playmaker'],
+            AMC: ['Attacking Midfielder', 'Trequartista', 'Advanced Playmaker'],
+            ST: ['Advanced Forward', 'Target Forward', 'Poacher']
+        };
+
+        // Coordinates for player positions on the pitch (left%, top%)
+        const CO = {
+            GK: [50, 90], DR: [80, 75], DRC: [65, 75], DC: [50, 78], DLC: [35, 75],
+            DL: [20, 75], MRD: [65, 60], MD: [50, 60], MLD: [35, 60],
+            MR: [80, 45], MRC: [65, 45], MC: [50, 45], MLC: [35, 45], ML: [20, 45],
+            AMR: [80, 28], AMC: [50, 28], AML: [20, 28], STR: [75, 10], STC: [50, 10], STL: [25, 10]
+        };
+
+        // ============================================================================
+        // SECTION 2: STATE MANAGEMENT
+        // ============================================================================
+        // Create blank attribute object (all attributes initialized to 0)
+        function blank() {
+            let o = {};
+            ATTRS.forEach(a => o[a] = 0);
+            return o;
+        }
+
+        // Default profiles with pre-configured attribute weights
+        let defaults = {};
+        ['Advanced Forward|Attack', 'Anchor|Defend', 'Mezzala|Attack', 'Ball Playing Defender|Defend']
+            .forEach(k => defaults[k] = blank());
+        defaults['Advanced Forward|Attack'].Finishing = 5;
+        defaults['Anchor|Defend'].Positioning = 4;
+
+        // Squad state: array of 11 player slots
+        let slots = Array.from({ length: 11 }, () => ({
+            position: '',
+            role: '',
+            duty: ''
+        }));
+
+        // Custom profile overrides
+        let custom = {};
+
+        // Currently active profile being edited
+        let active = '';
+
+        // ============================================================================
+        // SECTION 3: POSITION & DUTY LOGIC
+        // ============================================================================
+        // Determine available duties for a given position
+        function duties(p) {
+            return ['DRC', 'DC', 'DLC'].includes(p)
+                ? ['Defend', 'Support', 'Attack', 'Cover']
+                : ['Defend', 'Support', 'Attack'];
+        }
+
+        // ============================================================================
+        // SECTION 4: UI RENDERING
+        // ============================================================================
+        // Render the squad lineup table
+        function render() {
+            const rows = document.getElementById('rows');
+            rows.innerHTML = '';
+
+            slots.forEach((s, i) => {
+                const roles = s.position ? (LIB[F[s.position]] || []) : [];
+                const dutyOptions = s.position ? duties(s.position) : [];
+
+                rows.innerHTML += `
+                    <tr>
+                        <td>${i + 1}</td>
+                        <td>
+                            <select onchange="setP(${i}, this.value)">
+                                ${POS.map(x => `<option value="${x}" ${s.position === x ? 'selected' : ''}>${x || 'Select'}</option>`).join('')}
+                            </select>
+                        </td>
+                        <td>
+                            <select onchange="setR(${i}, this.value)" ${s.position ? '' : 'disabled'}>
+                                <option value="">Select Role</option>
+                                ${roles.map(r => `<option value="${r}" ${s.role === r ? 'selected' : ''}>${r}</option>`).join('')}
+                            </select>
+                        </td>
+                        <td>
+                            <select onchange="setD(${i}, this.value)" ${s.position ? '' : 'disabled'}>
+                                <option value="">Select Duty</option>
+                                ${dutyOptions.map(d => `<option value="${d}" ${s.duty === d ? 'selected' : ''}>${d}</option>`).join('')}
+                            </select>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            buildProfiles();
+            draw();
+        }
+
+        // Update player position
+        function setP(i, v) {
+            slots[i] = { position: v, role: '', duty: '' };
+            refresh();
+        }
+
+        // Update player role
+        function setR(i, v) {
+            slots[i].role = v;
+            refresh();
+        }
+
+        // Update player duty (NEW FUNCTION)
+        function setD(i, v) {
+            slots[i].duty = v;
+            refresh();
+        }
+
+        // Refresh all displays after state change
+        function refresh() {
+            render();
+        }
+
+        // Draw player positions on the pitch visualization
+        function draw() {
+            const pitch = document.getElementById('pitch');
+            pitch.innerHTML = '';
+
+            slots.forEach((s, i) => {
+                if (!s.position) return;
+
+                const d = document.createElement('div');
+                d.className = 'spot';
+                d.style.left = CO[s.position][0] + '%';
+                d.style.top = CO[s.position][1] + '%';
+                d.textContent = i + 1;
+                pitch.appendChild(d);
+            });
+        }
+
+        // Build and display unique player profiles used in squad
+        function buildProfiles() {
+            let u = {};
+            slots.forEach(s => {
+                if (s.role && s.duty) u[s.role + '|' + s.duty] = 1;
+            });
+
+            const profiles = document.getElementById('profiles');
+            profiles.innerHTML = '';
+
+            Object.keys(u).forEach(k => {
+                profiles.innerHTML += `
+                    <tr>
+                        <td>${k}</td>
+                        <td>${custom[k] ? 'Custom' : 'Default'}</td>
+                        <td>
+                            <button onclick="editProfile('${k}')">Edit</button>
+                            <button onclick="resetProfile('${k}')">Reset</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        // ============================================================================
+        // SECTION 5: PROFILE MANAGEMENT
+        // ============================================================================
+        // Retrieve a profile with custom overrides applied
+        function getProf(k) {
+            let p = JSON.parse(JSON.stringify(defaults[k] || blank()));
+            if (custom[k]) Object.assign(p, custom[k]);
+            return p;
+        }
+
+        // Open profile editor for a specific role/duty combination
+        function editProfile(k) {
+            active = k;
+            const editorTitle = document.getElementById('editorTitle');
+            editorTitle.textContent = k;
+
+            const p = getProf(k);
+            const weights = document.getElementById('weights');
+            weights.innerHTML = '';
+
+            ATTRS.forEach(a => {
+                weights.innerHTML += `
+                    <tr>
+                        <td>${a}</td>
+                        <td><input type='number' value='${p[a]}' onchange="setWeight('${a}', this.value)"></td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById('editorSection').style.display = 'block';
+        }
+
+        // Close profile editor
+        function closeEditor() {
+            active = '';
+            document.getElementById('editorSection').style.display = 'none';
+        }
+
+        // Update attribute weight for active profile
+        function setWeight(a, v) {
+            custom[active] = custom[active] || {};
+            custom[active][a] = Number(v);
+            buildProfiles();
+        }
+
+        // Reset profile to default values
+        function resetProfile() {
+            if (active) {
+                delete custom[active];
+                editProfile(active);
+                buildProfiles();
+            }
+        }
+
+        // ============================================================================
+        // SECTION 6: DATA PERSISTENCE
+        // ============================================================================
+        // Save squad configuration to browser local storage
+        function saveData() {
+            localStorage.fm424r = JSON.stringify({ slots, custom });
+            alert('Data saved successfully!');
+        }
+
+        // Load squad configuration from browser local storage
+        function loadData() {
+            let d = localStorage.fm424r;
+            if (d) {
+                let o = JSON.parse(d);
+                slots = o.slots;
+                custom = o.custom || {};
+                render();
+                alert('Data loaded successfully!');
+            } else {
+                alert('No saved data found.');
+            }
+        }
+
+        // Export all data as JSON
+        function exportData() {
+            const out = document.getElementById('out');
+            out.textContent = JSON.stringify({ slots, defaults, custom }, null, 2);
+        }
+
+        // ============================================================================
+        // INITIALIZATION
+        // ============================================================================
+        // Initial render on page load
+        render();
+    </script>
+</body>
+</html>
