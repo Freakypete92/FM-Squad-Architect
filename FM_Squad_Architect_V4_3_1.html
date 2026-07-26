@@ -503,21 +503,43 @@
             const doc = parser.parseFromString(html, 'text/html');
             squad = [];
 
-            // Try to parse table rows
-            const rows = doc.querySelectorAll('table tbody tr');
-            if (rows.length === 0) {
-                showImportStatus('No player data found in HTML', 'error');
+            // Try to find any table in the document
+            const tables = doc.querySelectorAll('table');
+            if (tables.length === 0) {
+                showImportStatus('No table found in HTML', 'error');
                 return;
             }
 
-            // Get header row to map column indices
-            const headerRow = doc.querySelector('table thead tr');
+            // Use the first table
+            const table = tables[0];
+            const rows = table.querySelectorAll('tr');
+            
+            if (rows.length < 2) {
+                showImportStatus('Table has insufficient data', 'error');
+                return;
+            }
+
+            // Get first row as header (look for th tags, or use first tr)
+            let headerRow = table.querySelector('thead tr');
+            if (!headerRow) {
+                // Try first tr with th tags
+                for (let tr of rows) {
+                    const ths = tr.querySelectorAll('th');
+                    if (ths.length > 0) {
+                        headerRow = tr;
+                        break;
+                    }
+                }
+            }
+
             if (!headerRow) {
                 showImportStatus('No header row found in HTML', 'error');
                 return;
             }
 
-            const headers = Array.from(headerRow.querySelectorAll('th')).map(th => th.textContent.trim());
+            // Extract headers
+            const headerCells = headerRow.querySelectorAll('th');
+            const headers = Array.from(headerCells).map(th => th.textContent.trim());
             
             // Create column index map
             const colMap = {};
@@ -526,12 +548,16 @@
             });
 
             // Check for required columns
-            if (!colMap['Name'] || !colMap['Age'] || !colMap['Position']) {
+            if (!colMap['Name'] || colMap['Age'] === undefined || !colMap['Position']) {
                 showImportStatus('HTML missing required columns: Name, Age, Position', 'error');
                 return;
             }
 
-            rows.forEach(row => {
+            // Parse data rows (skip header row)
+            rows.forEach((row, rowIdx) => {
+                // Skip if this is the header row
+                if (row === headerRow) return;
+                
                 const cells = row.querySelectorAll('td');
                 if (cells.length < 3) return;
 
@@ -552,7 +578,7 @@
 
                 // Parse attributes using FM column mapping
                 Object.entries(FM_COLUMN_MAP).forEach(([fmCol, attrName]) => {
-                    if (colMap[fmCol]) {
+                    if (colMap[fmCol] !== undefined) {
                         const val = parseInt(cells[colMap[fmCol]]?.textContent?.trim()) || 0;
                         player.attributes[attrName] = val;
                     }
