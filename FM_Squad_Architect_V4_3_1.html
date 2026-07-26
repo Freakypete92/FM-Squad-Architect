@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>FM Squad Architect V4.2.4R</title>
+    <title>FM Squad Architect V4.3.1</title>
     <style>
         body {
             font-family: Segoe UI;
@@ -15,11 +15,16 @@
         table {
             border-collapse: collapse;
             margin: 20px 0;
+            width: 100%;
         }
         td, th {
             border: 1px solid #444;
             padding: 10px;
             text-align: left;
+        }
+        th {
+            background-color: #2d2d2d;
+            font-weight: bold;
         }
         select, input {
             background-color: #2d2d2d;
@@ -34,13 +39,27 @@
             padding: 10px 20px;
             cursor: pointer;
             margin: 5px;
+            border-radius: 3px;
         }
         button:hover {
             background-color: #005a9e;
         }
+        button.danger {
+            background-color: #d13438;
+        }
+        button.danger:hover {
+            background-color: #a1262f;
+        }
+        button.success {
+            background-color: #107c10;
+        }
+        button.success:hover {
+            background-color: #0b6906;
+        }
         #pitch {
             position: relative;
             width: 100%;
+            max-width: 800px;
             height: 600px;
             background: linear-gradient(to bottom, #1a5a1a 0%, #1a5a1a 50%, #1a5a1a 100%);
             border: 2px solid #fff;
@@ -59,71 +78,244 @@
             color: white;
             font-size: 12px;
             font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
         }
+        .spot:hover {
+            transform: translate(-50%, -50%) scale(1.2);
+            background-color: #005a9e;
+        }
+        .tab-container {
+            margin: 20px 0;
+            border-bottom: 2px solid #444;
+        }
+        .tab-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .tab-button {
+            padding: 10px 20px;
+            background-color: #2d2d2d;
+            border: 1px solid #444;
+            color: #d4d4d4;
+            cursor: pointer;
+            border-radius: 3px 3px 0 0;
+        }
+        .tab-button.active {
+            background-color: #007acc;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+            padding: 20px;
+            background-color: #252525;
+            border-radius: 0 3px 3px 3px;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .squad-table {
+            font-size: 12px;
+        }
+        .squad-table td {
+            padding: 8px;
+        }
+        .score-high { color: #4ec9b0; font-weight: bold; }
+        .score-med { color: #dcdcaa; font-weight: bold; }
+        .score-low { color: #d7ba7d; }
+        .locked { background-color: #3a3a00; }
+        .override { background-color: #003a3a; }
+        .review-utility { background-color: #2d1b3a; }
+        .review-loan { background-color: #1b2d3a; }
+        .review-transfer { background-color: #3a2d1b; }
+        .review-release { background-color: #3a1b1b; }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            overflow: auto;
+        }
+        .modal.show {
+            display: block;
+        }
+        .modal-content {
+            background-color: #2d2d2d;
+            margin: 10% auto;
+            padding: 20px;
+            border: 1px solid #444;
+            width: 80%;
+            max-width: 800px;
+            border-radius: 5px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .close-modal {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close-modal:hover {
+            color: white;
+        }
+        .row { margin: 10px 0; }
+        .label { font-weight: bold; display: inline-block; width: 150px; }
     </style>
 </head>
 <body>
-    <h1>FM Squad Architect V4.2.4R</h1>
+    <h1>FM Squad Architect V4.3.1</h1>
     
-    <!-- Squad Formation Display -->
-    <div id="pitch"></div>
-    
-    <!-- Squad Lineup Table -->
-    <table border="1">
-        <thead>
-            <tr>
-                <th>Slot</th>
-                <th>Position</th>
-                <th>Role</th>
-                <th>Duty</th>
-            </tr>
-        </thead>
-        <tbody id="rows"></tbody>
-    </table>
-    
-    <!-- Player Profiles Table -->
-    <h2>Player Profiles</h2>
-    <table border="1">
-        <thead>
-            <tr>
-                <th>Profile (Role|Duty)</th>
-                <th>Status</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody id="profiles"></tbody>
-    </table>
-    
-    <!-- Profile Editor Section -->
-    <div id="editorSection" style="display: none; border: 1px solid #444; padding: 20px; margin-top: 20px;">
-        <h2 id="editorTitle">Edit Profile</h2>
-        <table border="1">
-            <thead>
-                <tr>
-                    <th>Attribute</th>
-                    <th>Weight</th>
-                </tr>
-            </thead>
-            <tbody id="weights"></tbody>
-        </table>
-        <button onclick="resetProfile()">Reset to Default</button>
-        <button onclick="closeEditor()">Close</button>
+    <!-- File Import Section -->
+    <div style="border: 1px solid #444; padding: 20px; margin: 20px 0; border-radius: 5px;">
+        <h2>Import FM Squad Data</h2>
+        <div class="row">
+            <input type="file" id="fileInput" accept=".html,.json" style="color: #d4d4d4;"/>
+            <button onclick="importFile()">Import</button>
+        </div>
+        <div id="importStatus" style="margin-top: 10px; padding: 10px; border-radius: 3px; display: none;"></div>
     </div>
-    
+
+    <!-- Tab Navigation -->
+    <div class="tab-container">
+        <div class="tab-buttons">
+            <button class="tab-button active" onclick="switchTab('tactic')">Tactic</button>
+            <button class="tab-button" onclick="switchTab('squad')">Squad Analysis</button>
+            <button class="tab-button" onclick="switchTab('review')">Review Centre</button>
+        </div>
+
+        <!-- TACTIC TAB -->
+        <div id="tactic" class="tab-content active">
+            <!-- Squad Formation Display -->
+            <div id="pitch"></div>
+            
+            <!-- Squad Lineup Table -->
+            <h2>Squad Formation</h2>
+            <table border="1">
+                <thead>
+                    <tr>
+                        <th>Slot</th>
+                        <th>Position</th>
+                        <th>Role</th>
+                        <th>Duty</th>
+                        <th>Locked</th>
+                    </tr>
+                </thead>
+                <tbody id="rows"></tbody>
+            </table>
+            
+            <!-- Player Profiles Table -->
+            <h2>Player Profiles</h2>
+            <table border="1">
+                <thead>
+                    <tr>
+                        <th>Profile (Role|Duty)</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="profiles"></tbody>
+            </table>
+            
+            <!-- Profile Editor Section -->
+            <div id="editorSection" style="display: none; border: 1px solid #444; padding: 20px; margin-top: 20px; border-radius: 5px;">
+                <h2 id="editorTitle">Edit Profile</h2>
+                <table border="1">
+                    <thead>
+                        <tr>
+                            <th>Attribute</th>
+                            <th>Weight</th>
+                        </tr>
+                    </thead>
+                    <tbody id="weights"></tbody>
+                </table>
+                <button onclick="resetProfile()">Reset to Default</button>
+                <button onclick="closeEditor()">Close</button>
+            </div>
+        </div>
+
+        <!-- SQUAD ANALYSIS TAB -->
+        <div id="squad" class="tab-content">
+            <h2>Squad Players</h2>
+            <p>Import a squad file to see player analysis and suitability scores.</p>
+            <table border="1" class="squad-table" id="squadTable">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Age</th>
+                        <th>FM Position(s)</th>
+                        <th>Override Position</th>
+                        <th>Best Role Match</th>
+                        <th>Suitability Score</th>
+                        <th>Lock</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="squadBody"></tbody>
+            </table>
+        </div>
+
+        <!-- REVIEW CENTRE TAB -->
+        <div id="review" class="tab-content">
+            <h2>Review Centre</h2>
+            <p>Mark players for action: Utility, Loan, Transfer, Release, or Review.</p>
+            
+            <div style="margin: 20px 0;">
+                <button onclick="filterReview('all')" class="tab-button active" id="filterAll">All</button>
+                <button onclick="filterReview('utility')" class="tab-button" id="filterUtility">Utility</button>
+                <button onclick="filterReview('loan')" class="tab-button" id="filterLoan">Loan</button>
+                <button onclick="filterReview('transfer')" class="tab-button" id="filterTransfer">Transfer</button>
+                <button onclick="filterReview('release')" class="tab-button" id="filterRelease">Release</button>
+                <button onclick="filterReview('review')" class="tab-button" id="filterReview">Review</button>
+            </div>
+
+            <table border="1" class="squad-table" id="reviewTable">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Age</th>
+                        <th>Position</th>
+                        <th>Status</th>
+                        <th>Notes</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="reviewBody"></tbody>
+            </table>
+        </div>
+    </div>
+
     <!-- Data Management Section -->
     <div style="margin-top: 30px; border-top: 2px solid #444; padding-top: 20px;">
         <h2>Data Management</h2>
         <button onclick="saveData()">Save Data</button>
         <button onclick="loadData()">Load Data</button>
         <button onclick="exportData()">Export Data</button>
-        <pre id="out" style="background-color: #2d2d2d; padding: 10px; border-radius: 5px;"></pre>
+        <button onclick="clearAllData()" class="danger">Clear All Data</button>
+        <pre id="out" style="background-color: #2d2d2d; padding: 10px; border-radius: 5px; max-height: 300px; overflow-y: auto;"></pre>
+    </div>
+
+    <!-- Modals -->
+    <div id="playerModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closePlayerModal()">&times;</span>
+            <h2>Player Details & Attributes</h2>
+            <div id="playerModalContent"></div>
+            <button onclick="closePlayerModal()">Close</button>
+        </div>
     </div>
 
     <script>
         // ============================================================================
         // SECTION 1: CONSTANTS & CONFIGURATION
         // ============================================================================
-        // Player attributes used for role profiling
         const ATTRS = [
             'Acceleration', 'Agility', 'Balance', 'JumpingReach', 'NaturalFitness',
             'Pace', 'Stamina', 'Strength', 'Aggression', 'Anticipation', 'Bravery',
@@ -132,13 +324,11 @@
             'Teamwork', 'Technique', 'Finishing', 'Dribbling', 'FirstTouch', 'LongShots'
         ];
 
-        // Available positions on the pitch
         const POS = [
             '', 'GK', 'DR', 'DRC', 'DC', 'DLC', 'DL', 'MRD', 'MD', 'MLD',
             'MR', 'MRC', 'MC', 'MLC', 'ML', 'AMR', 'AMC', 'AML', 'STR', 'STC', 'STL'
         ];
 
-        // Position to role mapping (e.g., DR and DL both map to FB - Full Back)
         const F = {
             GK: 'GK', DR: 'FB', DL: 'FB', DRC: 'DC', DC: 'DC', DLC: 'DC',
             MRD: 'DM', MD: 'DM', MLD: 'DM', MR: 'WM', ML: 'WM',
@@ -146,7 +336,6 @@
             STR: 'ST', STC: 'ST', STL: 'ST'
         };
 
-        // Role library - available tactical roles for each position type
         const LIB = {
             GK: ['Goalkeeper', 'Sweeper Keeper'],
             FB: ['Full Back', 'Wing Back', 'No Nonsense Full Back', 'Complete Wing Back', 'Inverted Wing Back', 'Inverted Full Back'],
@@ -159,7 +348,6 @@
             ST: ['Advanced Forward', 'Target Forward', 'Poacher']
         };
 
-        // Coordinates for player positions on the pitch (left%, top%)
         const CO = {
             GK: [50, 90], DR: [80, 75], DRC: [65, 75], DC: [50, 78], DLC: [35, 75],
             DL: [20, 75], MRD: [65, 60], MD: [50, 60], MLD: [35, 60],
@@ -170,37 +358,33 @@
         // ============================================================================
         // SECTION 2: STATE MANAGEMENT
         // ============================================================================
-        // Create blank attribute object (all attributes initialized to 0)
         function blank() {
             let o = {};
             ATTRS.forEach(a => o[a] = 0);
             return o;
         }
 
-        // Default profiles with pre-configured attribute weights
         let defaults = {};
         ['Advanced Forward|Attack', 'Anchor|Defend', 'Mezzala|Attack', 'Ball Playing Defender|Defend']
             .forEach(k => defaults[k] = blank());
         defaults['Advanced Forward|Attack'].Finishing = 5;
         defaults['Anchor|Defend'].Positioning = 4;
 
-        // Squad state: array of 11 player slots
         let slots = Array.from({ length: 11 }, () => ({
             position: '',
             role: '',
-            duty: ''
+            duty: '',
+            locked: false
         }));
 
-        // Custom profile overrides
         let custom = {};
-
-        // Currently active profile being edited
         let active = '';
+        let squad = []; // Squad player data
+        let currentReviewFilter = 'all';
 
         // ============================================================================
         // SECTION 3: POSITION & DUTY LOGIC
         // ============================================================================
-        // Determine available duties for a given position
         function duties(p) {
             return ['DRC', 'DC', 'DLC'].includes(p)
                 ? ['Defend', 'Support', 'Attack', 'Cover']
@@ -208,9 +392,319 @@
         }
 
         // ============================================================================
-        // SECTION 4: UI RENDERING
+        // SECTION 4: TAB MANAGEMENT
         // ============================================================================
-        // Render the squad lineup table
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+
+            if (tabName === 'squad') {
+                renderSquadTable();
+            } else if (tabName === 'review') {
+                renderReviewTable();
+            }
+        }
+
+        // ============================================================================
+        // SECTION 5: FILE IMPORT & PARSING
+        // ============================================================================
+        async function importFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            if (!file) {
+                showImportStatus('Please select a file', 'error');
+                return;
+            }
+
+            try {
+                const text = await file.text();
+                if (file.name.endsWith('.html')) {
+                    parseFMHTMLExport(text);
+                } else if (file.name.endsWith('.json')) {
+                    parseFMJSONExport(text);
+                } else {
+                    showImportStatus('Unsupported file format', 'error');
+                }
+            } catch (err) {
+                showImportStatus('Error reading file: ' + err.message, 'error');
+            }
+        }
+
+        function parseFMHTMLExport(html) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            squad = [];
+
+            // Try to parse table rows
+            const rows = doc.querySelectorAll('table tbody tr');
+            if (rows.length === 0) {
+                showImportStatus('No player data found in HTML', 'error');
+                return;
+            }
+
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length >= 3) {
+                    const player = {
+                        name: cells[0]?.textContent?.trim() || 'Unknown',
+                        age: parseInt(cells[1]?.textContent) || 0,
+                        positions: cells[2]?.textContent?.trim()?.split(',').map(p => p.trim()) || [],
+                        attributes: blank(),
+                        locked: false,
+                        positionOverride: '',
+                        reviewStatus: '',
+                        reviewNotes: ''
+                    };
+
+                    // Parse attributes (FM export typically has them in columns)
+                    ATTRS.forEach((attr, idx) => {
+                        const cellIdx = 3 + idx;
+                        if (cells[cellIdx]) {
+                            player.attributes[attr] = parseInt(cells[cellIdx].textContent) || 0;
+                        }
+                    });
+
+                    squad.push(player);
+                }
+            });
+
+            if (squad.length > 0) {
+                showImportStatus(`Successfully imported ${squad.length} players`, 'success');
+                saveData(); // Auto-save
+                renderSquadTable();
+            } else {
+                showImportStatus('No players could be parsed from the file', 'error');
+            }
+        }
+
+        function parseFMJSONExport(json) {
+            try {
+                const data = JSON.parse(json);
+                squad = data.players || [];
+                
+                // Ensure each player has required fields
+                squad.forEach(p => {
+                    if (!p.attributes) p.attributes = blank();
+                    if (!p.locked) p.locked = false;
+                    if (!p.positionOverride) p.positionOverride = '';
+                    if (!p.reviewStatus) p.reviewStatus = '';
+                    if (!p.reviewNotes) p.reviewNotes = '';
+                });
+
+                if (squad.length > 0) {
+                    showImportStatus(`Successfully imported ${squad.length} players`, 'success');
+                    saveData();
+                    renderSquadTable();
+                } else {
+                    showImportStatus('No players found in JSON', 'error');
+                }
+            } catch (err) {
+                showImportStatus('Invalid JSON format: ' + err.message, 'error');
+            }
+        }
+
+        function showImportStatus(msg, type) {
+            const el = document.getElementById('importStatus');
+            el.textContent = msg;
+            el.style.display = 'block';
+            el.style.backgroundColor = type === 'error' ? '#5a1a1a' : '#1a5a1a';
+            el.style.color = type === 'error' ? '#d13438' : '#107c10';
+        }
+
+        // ============================================================================
+        // SECTION 6: SUITABILITY SCORING
+        // ============================================================================
+        function calculateSuitability(player, role, duty) {
+            const profileKey = role + '|' + duty;
+            const profile = getProf(profileKey);
+            
+            let score = 0;
+            let weightedCount = 0;
+
+            ATTRS.forEach(attr => {
+                const weight = profile[attr] || 0;
+                const playerValue = player.attributes[attr] || 0;
+                
+                if (weight > 0) {
+                    score += (playerValue / 20) * weight; // Normalize to 0-1, multiply by weight
+                    weightedCount += weight;
+                }
+            });
+
+            return weightedCount > 0 ? (score / weightedCount).toFixed(2) : 0;
+        }
+
+        function findBestRoleMatch(player) {
+            let bestScore = -1;
+            let bestMatch = { role: '', duty: '', score: 0 };
+
+            // Get player's primary position
+            const primaryPos = player.positionOverride || (player.positions && player.positions[0]) || '';
+            if (!primaryPos) return bestMatch;
+
+            const roleFamily = F[primaryPos];
+            if (!roleFamily || !LIB[roleFamily]) return bestMatch;
+
+            LIB[roleFamily].forEach(role => {
+                ['Defend', 'Support', 'Attack'].forEach(duty => {
+                    const score = parseFloat(calculateSuitability(player, role, duty));
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestMatch = { role, duty, score };
+                    }
+                });
+            });
+
+            return bestMatch;
+        }
+
+        // ============================================================================
+        // SECTION 7: SQUAD TABLE RENDERING
+        // ============================================================================
+        function renderSquadTable() {
+            const tbody = document.getElementById('squadBody');
+            tbody.innerHTML = '';
+
+            squad.forEach((player, idx) => {
+                const match = findBestRoleMatch(player);
+                const scoreClass = match.score >= 0.7 ? 'score-high' : match.score >= 0.5 ? 'score-med' : 'score-low';
+                
+                const positionsStr = player.positions.join(', ');
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${player.name}</strong></td>
+                        <td>${player.age}</td>
+                        <td>${positionsStr}</td>
+                        <td>
+                            <select onchange="setPositionOverride(${idx}, this.value)">
+                                <option value="">None</option>
+                                ${POS.filter(p => p).map(p => `<option value="${p}" ${player.positionOverride === p ? 'selected' : ''}>${p}</option>`).join('')}
+                            </select>
+                        </td>
+                        <td>${match.role ? match.role + ' (' + match.duty + ')' : 'N/A'}</td>
+                        <td class="${scoreClass}">${match.score}</td>
+                        <td>
+                            <input type="checkbox" ${player.locked ? 'checked' : ''} onchange="toggleLock(${idx})">
+                        </td>
+                        <td>
+                            <button onclick="showPlayerDetails(${idx})">Details</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function setPositionOverride(idx, pos) {
+            squad[idx].positionOverride = pos;
+            renderSquadTable();
+        }
+
+        function toggleLock(idx) {
+            squad[idx].locked = !squad[idx].locked;
+            renderSquadTable();
+        }
+
+        function showPlayerDetails(idx) {
+            const player = squad[idx];
+            const content = document.getElementById('playerModalContent');
+            
+            let html = `<h3>${player.name} (Age: ${player.age})</h3>`;
+            html += `<p><strong>FM Positions:</strong> ${player.positions.join(', ')}</p>`;
+            html += `<p><strong>Position Override:</strong> ${player.positionOverride || 'None'}</p>`;
+            html += `<p><strong>Locked:</strong> ${player.locked ? 'Yes' : 'No'}</p>`;
+            
+            html += '<h4>Attributes</h4>';
+            html += '<table border="1">';
+            ATTRS.forEach(attr => {
+                const val = player.attributes[attr] || 0;
+                html += `<tr><td>${attr}</td><td>${val}</td></tr>`;
+            });
+            html += '</table>';
+
+            content.innerHTML = html;
+            document.getElementById('playerModal').classList.add('show');
+        }
+
+        function closePlayerModal() {
+            document.getElementById('playerModal').classList.remove('show');
+        }
+
+        // ============================================================================
+        // SECTION 8: REVIEW CENTRE
+        // ============================================================================
+        function renderReviewTable() {
+            const tbody = document.getElementById('reviewBody');
+            tbody.innerHTML = '';
+
+            const filtered = currentReviewFilter === 'all' 
+                ? squad 
+                : squad.filter(p => p.reviewStatus === currentReviewFilter);
+
+            filtered.forEach((player, idx) => {
+                const realIdx = squad.indexOf(player);
+                const statusClass = player.reviewStatus ? `review-${player.reviewStatus}` : '';
+                
+                tbody.innerHTML += `
+                    <tr class="${statusClass}">
+                        <td><strong>${player.name}</strong></td>
+                        <td>${player.age}</td>
+                        <td>${player.positionOverride || player.positions[0]}</td>
+                        <td>
+                            <select onchange="setReviewStatus(${realIdx}, this.value)">
+                                <option value="">None</option>
+                                <option value="utility" ${player.reviewStatus === 'utility' ? 'selected' : ''}>Utility</option>
+                                <option value="loan" ${player.reviewStatus === 'loan' ? 'selected' : ''}>Loan</option>
+                                <option value="transfer" ${player.reviewStatus === 'transfer' ? 'selected' : ''}>Transfer</option>
+                                <option value="release" ${player.reviewStatus === 'release' ? 'selected' : ''}>Release</option>
+                                <option value="review" ${player.reviewStatus === 'review' ? 'selected' : ''}>Review</option>
+                            </select>
+                        </td>
+                        <td>
+                            <input type="text" value="${player.reviewNotes}" onchange="setReviewNotes(${realIdx}, this.value)" style="width: 200px;">
+                        </td>
+                        <td>
+                            <button onclick="clearReviewStatus(${realIdx})">Clear</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function setReviewStatus(idx, status) {
+            squad[idx].reviewStatus = status;
+            renderReviewTable();
+        }
+
+        function setReviewNotes(idx, notes) {
+            squad[idx].reviewNotes = notes;
+        }
+
+        function clearReviewStatus(idx) {
+            squad[idx].reviewStatus = '';
+            squad[idx].reviewNotes = '';
+            renderReviewTable();
+        }
+
+        function filterReview(filter) {
+            currentReviewFilter = filter;
+            document.querySelectorAll('[id^="filter"]').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('filter' + filter.charAt(0).toUpperCase() + filter.slice(1)).classList.add('active');
+            renderReviewTable();
+        }
+
+        // ============================================================================
+        // SECTION 9: TACTIC UI RENDERING
+        // ============================================================================
         function render() {
             const rows = document.getElementById('rows');
             rows.innerHTML = '';
@@ -219,8 +713,11 @@
                 const roles = s.position ? (LIB[F[s.position]] || []) : [];
                 const dutyOptions = s.position ? duties(s.position) : [];
 
+                let rowClass = '';
+                if (s.locked) rowClass = 'locked';
+
                 rows.innerHTML += `
-                    <tr>
+                    <tr class="${rowClass}">
                         <td>${i + 1}</td>
                         <td>
                             <select onchange="setP(${i}, this.value)">
@@ -239,6 +736,9 @@
                                 ${dutyOptions.map(d => `<option value="${d}" ${s.duty === d ? 'selected' : ''}>${d}</option>`).join('')}
                             </select>
                         </td>
+                        <td>
+                            <input type="checkbox" ${s.locked ? 'checked' : ''} onchange="toggleSlotLock(${i})">
+                        </td>
                     </tr>
                 `;
             });
@@ -247,30 +747,36 @@
             draw();
         }
 
-        // Update player position
         function setP(i, v) {
-            slots[i] = { position: v, role: '', duty: '' };
-            refresh();
+            if (!slots[i].locked) {
+                slots[i] = { position: v, role: '', duty: '', locked: false };
+                refresh();
+            }
         }
 
-        // Update player role
         function setR(i, v) {
-            slots[i].role = v;
-            refresh();
+            if (!slots[i].locked) {
+                slots[i].role = v;
+                refresh();
+            }
         }
 
-        // Update player duty (NEW FUNCTION)
         function setD(i, v) {
-            slots[i].duty = v;
-            refresh();
+            if (!slots[i].locked) {
+                slots[i].duty = v;
+                refresh();
+            }
         }
 
-        // Refresh all displays after state change
+        function toggleSlotLock(i) {
+            slots[i].locked = !slots[i].locked;
+            render();
+        }
+
         function refresh() {
             render();
         }
 
-        // Draw player positions on the pitch visualization
         function draw() {
             const pitch = document.getElementById('pitch');
             pitch.innerHTML = '';
@@ -287,7 +793,6 @@
             });
         }
 
-        // Build and display unique player profiles used in squad
         function buildProfiles() {
             let u = {};
             slots.forEach(s => {
@@ -312,16 +817,14 @@
         }
 
         // ============================================================================
-        // SECTION 5: PROFILE MANAGEMENT
+        // SECTION 10: PROFILE MANAGEMENT
         // ============================================================================
-        // Retrieve a profile with custom overrides applied
         function getProf(k) {
             let p = JSON.parse(JSON.stringify(defaults[k] || blank()));
             if (custom[k]) Object.assign(p, custom[k]);
             return p;
         }
 
-        // Open profile editor for a specific role/duty combination
         function editProfile(k) {
             active = k;
             const editorTitle = document.getElementById('editorTitle');
@@ -343,20 +846,17 @@
             document.getElementById('editorSection').style.display = 'block';
         }
 
-        // Close profile editor
         function closeEditor() {
             active = '';
             document.getElementById('editorSection').style.display = 'none';
         }
 
-        // Update attribute weight for active profile
         function setWeight(a, v) {
             custom[active] = custom[active] || {};
             custom[active][a] = Number(v);
             buildProfiles();
         }
 
-        // Reset profile to default values
         function resetProfile() {
             if (active) {
                 delete custom[active];
@@ -366,21 +866,20 @@
         }
 
         // ============================================================================
-        // SECTION 6: DATA PERSISTENCE
+        // SECTION 11: DATA PERSISTENCE
         // ============================================================================
-        // Save squad configuration to browser local storage
         function saveData() {
-            localStorage.fm424r = JSON.stringify({ slots, custom });
+            localStorage.fm431 = JSON.stringify({ slots, custom, squad });
             alert('Data saved successfully!');
         }
 
-        // Load squad configuration from browser local storage
         function loadData() {
-            let d = localStorage.fm424r;
+            let d = localStorage.fm431;
             if (d) {
                 let o = JSON.parse(d);
-                slots = o.slots;
+                slots = o.slots || slots;
                 custom = o.custom || {};
+                squad = o.squad || [];
                 render();
                 alert('Data loaded successfully!');
             } else {
@@ -388,17 +887,27 @@
             }
         }
 
-        // Export all data as JSON
         function exportData() {
             const out = document.getElementById('out');
-            out.textContent = JSON.stringify({ slots, defaults, custom }, null, 2);
+            out.textContent = JSON.stringify({ slots, defaults, custom, squad }, null, 2);
+        }
+
+        function clearAllData() {
+            if (confirm('Are you sure? This will delete all data.')) {
+                slots = Array.from({ length: 11 }, () => ({ position: '', role: '', duty: '', locked: false }));
+                custom = {};
+                squad = [];
+                localStorage.removeItem('fm431');
+                render();
+                alert('All data cleared');
+            }
         }
 
         // ============================================================================
         // INITIALIZATION
         // ============================================================================
-        // Initial render on page load
         render();
+        loadData();
     </script>
 </body>
 </html>
