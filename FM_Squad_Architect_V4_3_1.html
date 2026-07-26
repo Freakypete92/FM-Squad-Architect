@@ -537,19 +537,23 @@
                 return;
             }
 
-            // Extract headers
+            // Extract headers (case-insensitive, trim whitespace)
             const headerCells = headerRow.querySelectorAll('th');
-            const headers = Array.from(headerCells).map(th => th.textContent.trim());
+            const headers = Array.from(headerCells).map(th => th.textContent.trim().toLowerCase());
             
-            // Create column index map
+            // Create column index map (case-insensitive)
             const colMap = {};
             headers.forEach((header, idx) => {
                 colMap[header] = idx;
             });
 
-            // Check for required columns
-            if (!colMap['Name'] || colMap['Age'] === undefined || !colMap['Position']) {
-                showImportStatus('HTML missing required columns: Name, Age, Position', 'error');
+            // Debug: log headers found
+            console.log('Headers found:', headers);
+            console.log('Column map:', colMap);
+
+            // Check for required columns (case-insensitive)
+            if (!colMap['name'] || colMap['age'] === undefined || !colMap['position']) {
+                showImportStatus('HTML missing required columns: Name, Age, Position. Found: ' + headers.join(', '), 'error');
                 return;
             }
 
@@ -561,9 +565,10 @@
                 const cells = row.querySelectorAll('td');
                 if (cells.length < 3) return;
 
-                const name = cells[colMap['Name']]?.textContent?.trim() || 'Unknown';
-                const age = parseInt(cells[colMap['Age']]?.textContent?.trim()) || 0;
-                const positions = cells[colMap['Position']]?.textContent?.trim()?.split(',').map(p => p.trim().replace(/\s*\(.*?\)\s*/g, '')) || [];
+                const name = cells[colMap['name']]?.textContent?.trim() || 'Unknown';
+                const age = parseInt(cells[colMap['age']]?.textContent?.trim()) || 0;
+                const posRaw = cells[colMap['position']]?.textContent?.trim() || '';
+                const positions = posRaw.split(',').map(p => p.trim().replace(/\s*\(.*?\)\s*/g, '')).filter(p => p);
 
                 const player = {
                     name: name,
@@ -578,8 +583,9 @@
 
                 // Parse attributes using FM column mapping
                 Object.entries(FM_COLUMN_MAP).forEach(([fmCol, attrName]) => {
-                    if (colMap[fmCol] !== undefined) {
-                        const val = parseInt(cells[colMap[fmCol]]?.textContent?.trim()) || 0;
+                    const fmColLower = fmCol.toLowerCase();
+                    if (colMap[fmColLower] !== undefined) {
+                        const val = parseInt(cells[colMap[fmColLower]]?.textContent?.trim()) || 0;
                         player.attributes[attrName] = val;
                     }
                 });
