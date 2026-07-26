@@ -324,6 +324,37 @@
             'Teamwork', 'Technique', 'Finishing', 'Dribbling', 'FirstTouch', 'LongShots'
         ];
 
+        // FM HTML export column mappings
+        const FM_COLUMN_MAP = {
+            'Acc': 'Acceleration',
+            'Agi': 'Agility',
+            'Bal': 'Balance',
+            'Jum': 'JumpingReach',
+            'Nat': 'NaturalFitness',
+            'Pac': 'Pace',
+            'Sta': 'Stamina',
+            'Str': 'Strength',
+            'Agg': 'Aggression',
+            'Ant': 'Anticipation',
+            'Bra': 'Bravery',
+            'Com': 'Composure',
+            'Cnt': 'Concentration',
+            'Dec': 'Decisions',
+            'Det': 'Determination',
+            'Fla': 'Flair',
+            'Hea': 'Heading',
+            'Mar': 'Marking',
+            'OtB': 'OffTheBall',
+            'Pas': 'Passing',
+            'Pos': 'Positioning',
+            'Tea': 'Teamwork',
+            'Tec': 'Technique',
+            'Fin': 'Finishing',
+            'Dri': 'Dribbling',
+            'Fre': 'FirstTouch',
+            'Lon': 'LongShots'
+        };
+
         const POS = [
             '', 'GK', 'DR', 'DRC', 'DC', 'DLC', 'DL', 'MRD', 'MD', 'MLD',
             'MR', 'MRC', 'MC', 'MLC', 'ML', 'AMR', 'AMC', 'AML', 'STR', 'STC', 'STL'
@@ -479,30 +510,55 @@
                 return;
             }
 
+            // Get header row to map column indices
+            const headerRow = doc.querySelector('table thead tr');
+            if (!headerRow) {
+                showImportStatus('No header row found in HTML', 'error');
+                return;
+            }
+
+            const headers = Array.from(headerRow.querySelectorAll('th')).map(th => th.textContent.trim());
+            
+            // Create column index map
+            const colMap = {};
+            headers.forEach((header, idx) => {
+                colMap[header] = idx;
+            });
+
+            // Check for required columns
+            if (!colMap['Name'] || !colMap['Age'] || !colMap['Position']) {
+                showImportStatus('HTML missing required columns: Name, Age, Position', 'error');
+                return;
+            }
+
             rows.forEach(row => {
                 const cells = row.querySelectorAll('td');
-                if (cells.length >= 3) {
-                    const player = {
-                        name: cells[0]?.textContent?.trim() || 'Unknown',
-                        age: parseInt(cells[1]?.textContent) || 0,
-                        positions: cells[2]?.textContent?.trim()?.split(',').map(p => p.trim()) || [],
-                        attributes: blank(),
-                        locked: false,
-                        positionOverride: '',
-                        reviewStatus: '',
-                        reviewNotes: ''
-                    };
+                if (cells.length < 3) return;
 
-                    // Parse attributes (FM export typically has them in columns)
-                    ATTRS.forEach((attr, idx) => {
-                        const cellIdx = 3 + idx;
-                        if (cells[cellIdx]) {
-                            player.attributes[attr] = parseInt(cells[cellIdx].textContent) || 0;
-                        }
-                    });
+                const name = cells[colMap['Name']]?.textContent?.trim() || 'Unknown';
+                const age = parseInt(cells[colMap['Age']]?.textContent?.trim()) || 0;
+                const positions = cells[colMap['Position']]?.textContent?.trim()?.split(',').map(p => p.trim().replace(/\s*\(.*?\)\s*/g, '')) || [];
 
-                    squad.push(player);
-                }
+                const player = {
+                    name: name,
+                    age: age,
+                    positions: positions.length > 0 ? positions : ['Unknown'],
+                    attributes: blank(),
+                    locked: false,
+                    positionOverride: '',
+                    reviewStatus: '',
+                    reviewNotes: ''
+                };
+
+                // Parse attributes using FM column mapping
+                Object.entries(FM_COLUMN_MAP).forEach(([fmCol, attrName]) => {
+                    if (colMap[fmCol]) {
+                        const val = parseInt(cells[colMap[fmCol]]?.textContent?.trim()) || 0;
+                        player.attributes[attrName] = val;
+                    }
+                });
+
+                squad.push(player);
             });
 
             if (squad.length > 0) {
@@ -652,7 +708,7 @@
             html += `<p><strong>Locked:</strong> ${player.locked ? 'Yes' : 'No'}</p>`;
             
             html += '<h4>Attributes</h4>';
-            html += '<table border="1">';
+            html += '<table border="1" style="font-size: 12px;">';
             ATTRS.forEach(attr => {
                 const val = player.attributes[attr] || 0;
                 html += `<tr><td>${attr}</td><td>${val}</td></tr>`;
